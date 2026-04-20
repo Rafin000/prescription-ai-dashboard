@@ -66,7 +66,12 @@ export function Appointments() {
         description="Your chamber schedule across both clinics. Drag patients to reschedule."
         actions={
           <>
-            <Button variant="secondary" leftIcon={<CalendarDays />}>
+            <Button
+              variant="secondary"
+              leftIcon={<CalendarDays />}
+              disabled
+              title="Coming soon — Google Calendar / iCloud / Outlook sync"
+            >
               Sync calendar
             </Button>
             <Button
