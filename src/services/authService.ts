@@ -14,6 +14,8 @@ export interface SignupRequest {
   bmdcNo?: string;
   phone?: string;
   teamName?: string;
+  /** Short-lived phone-verified JWT from /auth/otp/verify. */
+  phoneOtpToken?: string;
 }
 
 export const authService = {
