@@ -1,0 +1,76 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,400;1,9..144,500;1,9..144,600;1,9..144,700&family=JetBrains+Mono:wght@400;500&family=Hind+Siliguri:wght@400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html,
+  body,
+  #root {
+    @apply min-h-screen bg-bg text-ink font-sans antialiased;
+  }
+  body {
+    font-size: 14px;
+    line-height: 1.5;
+  }
+  :focus-visible {
+    outline: 2px solid theme('colors.accent.DEFAULT');
+    outline-offset: 2px;
+    border-radius: 6px;
+  }
+  ::selection {
+    background: theme('colors.accent.soft');
+    color: theme('colors.accent.ink');
+  }
+
+  /* Scrollbar */
+  *::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  *::-webkit-scrollbar-thumb {
+    background: rgba(15, 118, 110, 0.18);
+    border-radius: 999px;
+    border: 2px solid transparent;
+    background-clip: padding-box;
+  }
+  *::-webkit-scrollbar-thumb:hover {
+    background: rgba(15, 118, 110, 0.32);
+    background-clip: padding-box;
+    border: 2px solid transparent;
+  }
+  *::-webkit-scrollbar-track {
+    background: transparent;
+  }
+}
+
+@layer components {
+  .pai-card {
+    @apply bg-surface border border-line rounded-xl shadow-sm;
+  }
+  .pai-section-label {
+    @apply text-[10px] font-bold tracking-[1.4px] uppercase text-accent-ink;
+  }
+}
+
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 10mm;
+  }
+  html,
+  body {
+    background: white !important;
+  }
+  .pai-no-print {
+    display: none !important;
+  }
+  /* Let the Rx paper use the full printable area regardless of the on-screen
+     container width. */
+  .pai-rx-sheet {
+    width: 100% !important;
+    box-shadow: none !important;
+    border: none !important;
+  }
+}

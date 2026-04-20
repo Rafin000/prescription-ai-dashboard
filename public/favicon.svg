@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <rect width="32" height="32" rx="6" fill="#0F766E"/>
+  <text x="15" y="24"
+        text-anchor="middle"
+        font-family="'Fraunces', 'Playfair Display', Georgia, 'Times New Roman', serif"
+        font-style="italic"
+        font-weight="600"
+        font-size="23"
+        letter-spacing="-0.5"
+        fill="#ffffff">P</text>
+  <text x="21" y="23"
+        font-family="'Fraunces', Georgia, 'Times New Roman', serif"
+        font-style="italic"
+        font-weight="500"
+        font-size="8"
+        letter-spacing="0.2"
+        fill="#ffffff">ai</text>
+</svg>
