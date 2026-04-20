@@ -16,6 +16,8 @@ export const http: AxiosInstance = axios.create({
   baseURL: env.apiBaseUrl,
   headers: { 'Content-Type': 'application/json' },
   timeout: 15_000,
+  // Send the `pai_session` cookie cross-origin to the backend.
+  withCredentials: true,
 });
 
 /* ─── request interceptor: attach access token ────────────────── */

@@ -147,16 +147,37 @@ export interface Doctor {
   nameBn?: string;
   degrees: string[];
   specialty: string;
+  /** Sub-specialties — surfaced on the public listing. */
+  focusAreas?: string[];
   bmdcNo: string;
   phone: string;
   email: string;
   avatarUrl?: string;
   chambers: Chamber[];
   signatureUrl?: string;
+  /** Public-listing metadata — only filled when the doctor opted into the
+   *  patient-facing directory at sign-up. */
+  yearsOfExperience?: number;
+  languages?: string[];
+  tagline?: string;
+  bio?: string;
+  rating?: number;
+  reviewCount?: number;
+  feeBdt?: number;
+  /** True if patients can request an appointment from the public site. */
+  acceptingNewPatients?: boolean;
+  /** Tele-consultation availability — surfaces a "Video call" badge. */
+  offersTele?: boolean;
   /** Role in the active team. Defaults to 'admin' when the user owns the workspace. */
   role: TeamRole;
   /** The team this user is currently acting within. */
   teamId: string;
+  /**
+   * True when this user is the workspace owner (the doctor whose practice
+   * the team operates in). False for invited members. Drives whether the
+   * heavy onboarding flow + billing gate apply.
+   */
+  isOwner: boolean;
   /** Where the doctor currently is in the onboarding flow. */
   onboardingStep: OnboardingStep;
   /** True once the doctor has completed (or skipped past) every step. */
@@ -191,4 +212,9 @@ export interface Chamber {
   time: string;
   /** Optional structured weekly slots — preferred over the legacy days/time. */
   slots?: AvailabilitySlot[];
+  /** Public-facing geo so the discovery map can drop a marker. */
+  lat?: number;
+  lng?: number;
+  area?: string;
+  city?: string;
 }

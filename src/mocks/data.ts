@@ -189,6 +189,7 @@ export const currentDoctor: Doctor = {
   id: 'doc-001',
   role: 'admin',
   teamId: 'team-001',
+  isOwner: true,
   name: 'Dr. Ashraful Karim',
   nameBn: 'ডা. আশরাফুল করিম',
   degrees: ['MBBS', 'FCPS (Medicine)', 'MD (Cardiology)'],

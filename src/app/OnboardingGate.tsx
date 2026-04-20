@@ -24,6 +24,10 @@ export function OnboardingGate() {
 
   if (!user) return <Outlet />; // ProtectedRoute already handled auth
 
+  // Invited team members aren't workspace owners — they don't go through
+  // the doctor's setup or own the subscription. Let them straight through.
+  if (user.isOwner === false) return <Outlet />;
+
   const onOnboardingPath = location.pathname.startsWith('/onboarding');
   const onBillingPath = location.pathname === '/billing';
 
