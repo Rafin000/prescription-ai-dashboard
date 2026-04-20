@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
-import { Bell, HelpCircle, Search, Sparkles, Stethoscope } from 'lucide-react';
+import { HelpCircle, Search, Sparkles, Stethoscope } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { IconButton } from '../ui/IconButton';
 import { Can } from '../../auth/Can';
 import { StartSessionModal } from '../session/StartSessionModal';
 import { TalkToAIModal } from '../prescription/TalkToAIModal';
+import { NotificationsPopover } from './NotificationsPopover';
 import { useActiveSessionStore } from '../../stores/activeSessionStore';
 import { cn } from '../../lib/cn';
 
@@ -119,15 +120,15 @@ export function TopBar() {
           </>
         )}
 
-        <IconButton aria-label="Help">
+        <IconButton
+          aria-label="Help"
+          onClick={() =>
+            window.open('mailto:support@prescription.ai?subject=Support', '_blank')
+          }
+        >
           <HelpCircle />
         </IconButton>
-        <div className="relative">
-          <IconButton aria-label="Notifications">
-            <Bell />
-          </IconButton>
-          <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-live ring-2 ring-surface" />
-        </div>
+        <NotificationsPopover />
       </div>
 
       <StartSessionModal open={startOpen} onClose={() => setStartOpen(false)} />

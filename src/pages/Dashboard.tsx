@@ -82,9 +82,11 @@ export function Dashboard() {
         }
         description={`You have ${today.length} appointments at ${chamber?.name.split('—')[1]?.trim() ?? 'your chamber'} this evening. 2 patients need lab review.`}
         actions={
-          <Button variant="secondary" leftIcon={<CalendarDays />}>
-            Today's schedule
-          </Button>
+          <Link to="/appointments">
+            <Button variant="secondary" leftIcon={<CalendarDays />}>
+              Today's schedule
+            </Button>
+          </Link>
         }
       />
 
