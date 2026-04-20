@@ -6,7 +6,6 @@ import axios, {
 } from 'axios';
 import { env } from '../config/env';
 import { authStorage } from './authStorage';
-import { attachMockAdapter } from '../mocks/handlers';
 
 interface RetryConfig extends InternalAxiosRequestConfig {
   _retry?: boolean;
@@ -83,11 +82,6 @@ http.interceptors.response.use(
     return Promise.reject(Object.assign(err, { message }));
   }
 );
-
-/* ─── mock adapter for dev / demo ─────────────────────────────── */
-if (env.useMock) {
-  attachMockAdapter(http);
-}
 
 /* ─── typed helpers ───────────────────────────────────────────── */
 export async function apiGet<T>(url: string, config?: AxiosRequestConfig): Promise<T> {

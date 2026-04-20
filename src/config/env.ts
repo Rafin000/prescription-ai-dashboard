@@ -5,7 +5,6 @@
  */
 export const env = {
   apiBaseUrl: (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? '/api',
-  useMock: (import.meta.env.VITE_USE_MOCK as string | undefined) !== 'false',
   appName: 'Prescription AI',
   idleLogoutMinutes: 30,
   refreshSkewSeconds: 60,
