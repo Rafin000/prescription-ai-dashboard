@@ -17,6 +17,7 @@ import { MockSslczGateway } from '../pages/MockSslczGateway';
 import { BillingCallback } from '../pages/BillingCallback';
 
 import { Login } from '../pages/Login';
+import { Register } from '../pages/Register';
 import { Dashboard } from '../pages/Dashboard';
 import { Patients } from '../pages/Patients';
 import { PatientDetail } from '../pages/PatientDetail';
@@ -44,9 +45,10 @@ export function AppRoutes() {
       {/* Public teammate invite — no account yet */}
       <Route path="/invite/:token" element={<InviteAccept />} />
 
-      {/* Public (login) */}
+      {/* Public (login / signup) */}
       <Route element={<PublicOnlyRoute />}>
         <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<Register />} />
       </Route>
 
       {/* Protected but full-screen (no app shell) — the call surface */}

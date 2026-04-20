@@ -6,8 +6,19 @@ import type {
   LoginResponse,
 } from '../types';
 
+export interface SignupRequest {
+  email: string;
+  password: string;
+  name: string;
+  specialty: string;
+  bmdcNo?: string;
+  phone?: string;
+  teamName?: string;
+}
+
 export const authService = {
   login: (body: LoginRequest) => apiPost<LoginResponse, LoginRequest>('/auth/login', body),
+  signup: (body: SignupRequest) => apiPost<LoginResponse, SignupRequest>('/auth/signup', body),
   refresh: (refreshToken: string) =>
     apiPost<AuthTokens, { refreshToken: string }>('/auth/refresh', { refreshToken }),
   logout: () => apiPost<void>('/auth/logout'),

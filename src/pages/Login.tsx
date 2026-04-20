@@ -142,7 +142,7 @@ export function Login() {
             <div className="text-center text-[12.5px] text-ink-3">
               New to Prescription AI?{' '}
               <Link to="/register" className="text-accent-ink font-semibold hover:underline">
-                Request an account
+                Sign up
               </Link>
             </div>
           </form>

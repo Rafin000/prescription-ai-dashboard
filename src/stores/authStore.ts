@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { authService } from '../services/authService';
+import { authService, type SignupRequest } from '../services/authService';
 import { authStorage } from '../lib/authStorage';
 import type { AuthStatus, Doctor, LoginRequest } from '../types';
 
@@ -10,6 +10,7 @@ interface AuthState {
 
   bootstrap: () => Promise<void>;
   login: (credentials: LoginRequest) => Promise<void>;
+  signup: (body: SignupRequest) => Promise<void>;
   logout: () => Promise<void>;
   setUser: (user: Doctor | null) => void;
   clearError: () => void;
@@ -47,6 +48,21 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     } catch (err) {
       const message =
         (err as { message?: string })?.message ?? 'Could not sign you in. Please try again.';
+      set({ status: 'unauthenticated', error: message });
+      throw err;
+    }
+  },
+
+  async signup(body) {
+    set({ status: 'loading', error: null });
+    try {
+      const res = await authService.signup(body);
+      authStorage.setTokens(res.accessToken, res.refreshToken);
+      authStorage.setUser(res.user);
+      set({ user: res.user, status: 'authenticated', error: null });
+    } catch (err) {
+      const message =
+        (err as { message?: string })?.message ?? 'Could not create your account.';
       set({ status: 'unauthenticated', error: message });
       throw err;
     }
