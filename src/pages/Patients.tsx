@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Filter, Plus, Scissors, Search, SlidersHorizontal } from 'lucide-react';
+import { Plus, Scissors, Search } from 'lucide-react';
 import { PageHeader } from '../components/layout/PageHeader';
 import { Card } from '../components/ui/Card';
 import { Input } from '../components/ui/Input';
@@ -61,20 +61,15 @@ export function Patients() {
         title="Patients"
         description="All records your clinic has on file. Search by name, code, or phone."
         actions={
-          <>
-            <Button variant="secondary" leftIcon={<SlidersHorizontal />}>
-              Filters
+          <Can permission="patient:create">
+            <Button
+              variant="primary"
+              leftIcon={<Plus />}
+              onClick={() => setNewOpen(true)}
+            >
+              New patient
             </Button>
-            <Can permission="patient:create">
-              <Button
-                variant="primary"
-                leftIcon={<Plus />}
-                onClick={() => setNewOpen(true)}
-              >
-                New patient
-              </Button>
-            </Can>
-          </>
+          </Can>
         }
       />
 
@@ -87,9 +82,6 @@ export function Patients() {
             value={q}
             onChange={(e) => setQ(e.target.value)}
           />
-          <Button variant="ghost" leftIcon={<Filter />}>
-            Sort: recent visit
-          </Button>
         </div>
         <Tabs items={tabs} value={tab} onChange={setTab} />
       </Card>

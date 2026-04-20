@@ -61,9 +61,11 @@ export function Settings() {
             <Row label="Auto-lock when idle" value="30 minutes" />
           </div>
           <div className="px-5 pb-5 flex items-center gap-2">
-            <Button variant="secondary">Change password</Button>
+            <Button variant="secondary" disabled title="Coming soon">
+              Change password
+            </Button>
             <Button variant="ghost" onClick={() => logout()}>
-              Sign out of all devices
+              Sign out
             </Button>
           </div>
         </Card>

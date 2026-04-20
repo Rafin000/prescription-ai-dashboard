@@ -43,11 +43,16 @@ export function Templates() {
         title="Rx templates"
         description="Save repeat-use prescriptions so you can start a consult 3 clicks away from sending the patient home."
         actions={
-          <Button variant="primary" leftIcon={<Plus />}>
+          <Button variant="primary" leftIcon={<Plus />} disabled title="Coming soon">
             New template
           </Button>
         }
       />
+
+      <div className="rounded-md border border-warn/30 bg-warn-soft/40 px-4 py-2 text-[12.5px] text-ink-2">
+        Templates editor is on the roadmap — the cards below are examples.
+        Save &amp; reuse is wired to the backend in a later slice.
+      </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
         {starterTemplates.map((t) => (
@@ -74,10 +79,10 @@ export function Templates() {
               ))}
             </div>
             <div className="flex items-center gap-2 pt-2 border-t border-line">
-              <Button variant="ghost" size="sm" leftIcon={<Copy />}>
+              <Button variant="ghost" size="sm" leftIcon={<Copy />} disabled title="Coming soon">
                 Use
               </Button>
-              <Button variant="ghost" size="sm">
+              <Button variant="ghost" size="sm" disabled title="Coming soon">
                 Edit
               </Button>
             </div>

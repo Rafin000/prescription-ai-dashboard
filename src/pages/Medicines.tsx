@@ -190,11 +190,28 @@ export function Medicines() {
               </div>
             )}
             <div className="flex items-center gap-2 pt-2 border-t border-line">
-              <Button variant="ghost" size="sm" leftIcon={<Heart />}>
-                Favourite
+              <Button
+                variant="ghost"
+                size="sm"
+                leftIcon={<Heart />}
+                onClick={() =>
+                  updateNote({ id: m.id, rating: (m.rating ?? 0) >= 5 ? 0 : 5 })
+                }
+              >
+                {(m.rating ?? 0) >= 5 ? 'Unfavourite' : 'Favourite'}
               </Button>
-              <Button variant="ghost" size="sm">
-                Add note
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  const note = window.prompt(
+                    `Note about ${m.brand}`,
+                    m.doctorNote ?? '',
+                  );
+                  if (note !== null) updateNote({ id: m.id, doctorNote: note });
+                }}
+              >
+                {m.doctorNote ? 'Edit note' : 'Add note'}
               </Button>
             </div>
           </Card>
