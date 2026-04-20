@@ -1,30 +1,12 @@
-import { Bell, FlaskConical, Languages, Palette, Printer, ShieldCheck } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { Bell, Languages, Palette, Printer, ShieldCheck } from 'lucide-react';
 import { PageHeader } from '../components/layout/PageHeader';
 import { Card, CardHeader } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { useAuthStore } from '../stores/authStore';
-import { http } from '../lib/http';
+
 export function Settings() {
   const logout = useAuthStore((s) => s.logout);
-  const setUser = useAuthStore((s) => s.setUser);
-  const user = useAuthStore((s) => s.user);
-  const navigate = useNavigate();
 
-  const resetOnboarding = async () => {
-    const r = await http.post('/dev/reset-onboarding');
-    setUser(r.data);
-    navigate('/onboarding/profile');
-  };
-
-  const simulateLapse = async () => {
-    if (!user) return;
-    setUser({
-      ...user,
-      subscription: { ...user.subscription, status: 'past_due' },
-    });
-    navigate('/billing');
-  };
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
@@ -67,24 +49,6 @@ export function Settings() {
           <div className="p-5 space-y-3 text-[13px]">
             <Row label="Appearance" value="Light (clinical teal)" />
             <Row label="Accent density" value="Comfortable" />
-          </div>
-        </Card>
-
-        <Card className="lg:col-span-2 border-warn/30 bg-warn-soft/40">
-          <CardHeader title="Demo controls" icon={<FlaskConical />} />
-          <div className="p-5 flex items-center justify-between gap-4 flex-wrap">
-            <div className="text-[12.5px] text-ink-2 max-w-[480px]">
-              Exercise the first-launch flow or the billing wall. Mock-only —
-              won't show in production.
-            </div>
-            <div className="flex items-center gap-2 flex-wrap">
-              <Button variant="ghost" onClick={simulateLapse}>
-                Simulate lapsed subscription
-              </Button>
-              <Button variant="secondary" onClick={resetOnboarding}>
-                Reset &amp; restart onboarding
-              </Button>
-            </div>
           </div>
         </Card>
 
