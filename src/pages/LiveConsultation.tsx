@@ -35,6 +35,7 @@ import { RxPreviewInlineModal } from '../components/session/RxPreviewInlineModal
 import { TemplatePickerModal } from '../components/session/TemplatePickerModal';
 import { cn } from '../lib/cn';
 import { fmtDate } from '../lib/format';
+import { printRxScoped } from '../lib/printRx';
 import type { ConsultTurn, RxMedicine } from '../types';
 
 type Lang = 'bn' | 'en';
@@ -207,7 +208,6 @@ export function LiveConsultation() {
 
   const handleEndAction = async ({ action, print }: EndSessionPayload) => {
     if (!patient) return;
-    endedRef.current = true;
     setEndBusy(action);
     try {
       await createVisit.mutateAsync({
@@ -233,14 +233,22 @@ export function LiveConsultation() {
                   : undefined,
               },
       });
-    } finally {
+    } catch (err) {
       setEndBusy(null);
-      setEndOpen(false);
-      end();
+      flashToast(
+        (err as { message?: string })?.message ??
+          'Could not save this consult. Please try again.',
+      );
+      return;
     }
 
+    endedRef.current = true;
+    setEndBusy(null);
+    setEndOpen(false);
+    end();
+
     if (action === 'finalize' && print) {
-      window.setTimeout(() => window.print(), 300);
+      window.setTimeout(() => printRxScoped(), 300);
     }
 
     if (action === 'finalize') {

@@ -2,7 +2,9 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { QueryCache, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useAuthStore } from '../stores/authStore';
 import { SessionRunner } from './SessionRunner';
+import { SettingsRunner } from './SettingsRunner';
 import { OngoingSessionBar } from '../components/layout/OngoingSessionBar';
+import { installKeyboardPrintHandler } from '../lib/printRx';
 
 function makeQueryClient(): QueryClient {
   return new QueryClient({
@@ -36,6 +38,7 @@ export function Providers({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     bootstrap();
+    installKeyboardPrintHandler();
   }, [bootstrap]);
 
   // Clear caches on logout so stale authenticated data doesn't leak.
@@ -49,6 +52,7 @@ export function Providers({ children }: { children: ReactNode }) {
     <QueryClientProvider client={client}>
       {children}
       <SessionRunner />
+      <SettingsRunner />
       <OngoingSessionBar />
     </QueryClientProvider>
   );

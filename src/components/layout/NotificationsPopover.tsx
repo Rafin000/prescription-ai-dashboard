@@ -8,6 +8,7 @@ import {
   notificationsService,
   type NotificationItem,
 } from '../../services/notificationsService';
+import { useResolvedSettings } from '../../stores/settingsStore';
 
 const DOT_TONE: Record<NotificationItem['severity'], string> = {
   info: 'bg-info',
@@ -49,8 +50,10 @@ export function NotificationsPopover() {
     return () => document.removeEventListener('mousedown', onClickAway);
   }, [open]);
 
-  const items = data?.items ?? [];
-  const unread = data?.unreadCount ?? 0;
+  const settings = useResolvedSettings();
+  const allItems = data?.items ?? [];
+  const items = allItems.filter((n) => isNotificationEnabled(n, settings.notifications));
+  const unread = items.filter((n) => !n.read).length;
 
   const onItemClick = (n: NotificationItem) => {
     if (!n.read) markRead.mutate(n.id);
@@ -128,6 +131,19 @@ export function NotificationsPopover() {
       )}
     </div>
   );
+}
+
+/** Map a notification's `kind` to a settings toggle. Anything we don't have a
+ *  toggle for is always shown. */
+function isNotificationEnabled(
+  n: NotificationItem,
+  prefs: { appointmentConfirmations: boolean; labUploaded: boolean; patientReschedules: boolean },
+): boolean {
+  const k = n.kind.toLowerCase();
+  if (/appointment|booking|confirm/.test(k)) return prefs.appointmentConfirmations;
+  if (/lab/.test(k)) return prefs.labUploaded;
+  if (/reschedule|cancel/.test(k)) return prefs.patientReschedules;
+  return true;
 }
 
 function fmtRelative(iso: string): string {

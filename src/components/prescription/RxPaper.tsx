@@ -12,6 +12,42 @@ import {
 import type { Doctor, Patient, Prescription } from '../../types';
 import { cn } from '../../lib/cn';
 import { fmtDate } from '../../lib/format';
+import { useResolvedSettings } from '../../stores/settingsStore';
+
+// Real paper sizes at ~96dpi screen rendering for preview. Print CSS in
+// global.css then forces the correct physical size.
+const PAPER_DIMENSIONS: Record<'A5' | 'A4', { minHeight: number; padding: string }> = {
+  A5: { minHeight: 700, padding: 'px-9 pt-8 pb-7' },
+  A4: { minHeight: 1050, padding: 'px-12 pt-10 pb-9' },
+};
+
+const LETTERHEAD_STYLES: Record<string, { borderColor: string; titleColor: string }> = {
+  'Clinical & calm (default)': { borderColor: '#0F766E', titleColor: '#0B1F1C' },
+  'Minimal monochrome': { borderColor: '#0B1F1C', titleColor: '#0B1F1C' },
+  'Modern colour band': { borderColor: '#1D4ED8', titleColor: '#1D4ED8' },
+};
+
+/** Bangla equivalents for the labels visible on the printed Rx. */
+const RX_LABELS_BN: Record<string, string> = {
+  Chamber: 'চেম্বার',
+  'Chief complaint': 'মূল অভিযোগ',
+  Diagnoses: 'রোগনির্ণয়',
+  Tests: 'পরীক্ষা',
+  Advice: 'পরামর্শ',
+  Treatment: 'চিকিৎসা',
+  'On examination': 'পরীক্ষা',
+  'Operation plan': 'অপারেশন পরিকল্পনা',
+  'Follow-up': 'পরবর্তী সাক্ষাৎ',
+  'Tear-off · for pharmacy': 'ফার্মেসির জন্য',
+  Patient: 'রোগী',
+};
+
+function labelFor(en: string, mode: 'en' | 'bn' | 'bilingual'): string {
+  const bn = RX_LABELS_BN[en];
+  if (mode === 'bn' && bn) return bn;
+  if (mode === 'bilingual' && bn) return `${en} · ${bn}`;
+  return en;
+}
 
 interface RxPaperProps {
   doctor: Doctor;
@@ -33,23 +69,39 @@ export function RxPaper({
   weight = '68 kg',
 }: RxPaperProps) {
   const chamber = doctor.chambers.find((c) => c.id === chamberId) ?? doctor.chambers[0];
+  const settings = useResolvedSettings();
+  const paper = PAPER_DIMENSIONS[settings.printing.paperSize] ?? PAPER_DIMENSIONS.A5;
+  const letterhead =
+    LETTERHEAD_STYLES[settings.printing.letterhead] ?? LETTERHEAD_STYLES['Clinical & calm (default)'];
+  const lang = settings.rxLanguage;
+  const tr = (en: string) => labelFor(en, lang);
 
   return (
+    <>
+    {/* Declare the print page size so the browser produces a true A4/A5
+        sheet that matches the Rx paper layout the doctor configured. */}
+    <style>{`@media print { @page { size: ${settings.printing.paperSize} portrait; margin: 10mm; } }`}</style>
     <div
       className={cn(
+        'rx-print-root',
         'bg-white rounded-lg shadow-md border border-line overflow-hidden',
-        'px-9 pt-8 pb-7 font-sans text-ink',
+        paper.padding,
+        'font-sans text-ink',
         className
       )}
-      style={{ minHeight: 700 }}
+      style={{ minHeight: paper.minHeight }}
+      data-paper-size={settings.printing.paperSize}
     >
       {/* ─── Doctor header ───────────────────────────────────────── */}
       <header
         className="grid grid-cols-2 gap-4 items-start pb-[18px] mb-[18px]"
-        style={{ borderBottom: '2px solid var(--color-accent, #0F766E)' }}
+        style={{ borderBottom: `2px solid ${letterhead.borderColor}` }}
       >
         <div className="text-[12px] text-ink-2 leading-[1.5]">
-          <div className="font-serif font-semibold text-[20px] text-ink leading-tight tracking-tight mb-0.5">
+          <div
+            className="font-serif font-semibold text-[20px] leading-tight tracking-tight mb-0.5"
+            style={{ color: letterhead.titleColor }}
+          >
             {doctor.name}
           </div>
           <div>{doctor.degrees.join(', ')}</div>
@@ -59,7 +111,7 @@ export function RxPaper({
           </div>
         </div>
         <div className="text-right text-[12px] text-ink-2 leading-[1.5]">
-          <div className="font-semibold text-ink text-[13px]">Chamber</div>
+          <div className="font-semibold text-ink text-[13px]">{tr('Chamber')}</div>
           <div>{chamber.name}</div>
           <div>
             {chamber.days.join(', ')} · {chamber.time}
@@ -78,7 +130,7 @@ export function RxPaper({
           gridTemplateColumns: 'repeat(4, 1fr) auto',
         }}
       >
-        <PatField label="Patient" value={patient.name} />
+        <PatField label={tr('Patient')} value={patient.name} />
         <PatField
           label="Age / Sex"
           value={`${patient.age} / ${patient.sex === 'female' ? 'F' : patient.sex === 'male' ? 'M' : '—'}`}
@@ -97,7 +149,7 @@ export function RxPaper({
         <div>
           {rx.chiefComplaint && (
             <ClinicalSection
-              label="Chief complaint"
+              label={tr('Chief complaint')}
               icon={<NotepadText className="h-3 w-3" />}
             >
               <ClinicalItem>{rx.chiefComplaint}</ClinicalItem>
@@ -105,7 +157,7 @@ export function RxPaper({
           )}
           {rx.diagnoses.length > 0 && (
             <ClinicalSection
-              label="Diagnosis"
+              label={tr('Diagnoses')}
               icon={<Sparkles className="h-3 w-3" />}
             >
               {rx.diagnoses.map((d, i) => (
@@ -117,7 +169,7 @@ export function RxPaper({
           )}
           {rx.tests.length > 0 && (
             <ClinicalSection
-              label="Investigations"
+              label={tr('Tests')}
               icon={<FlaskConical className="h-3 w-3" />}
             >
               {rx.tests.map((t, i) => (
@@ -128,7 +180,7 @@ export function RxPaper({
             </ClinicalSection>
           )}
           {rx.advice.length > 0 && (
-            <ClinicalSection label="Advice" icon={<Lightbulb className="h-3 w-3" />}>
+            <ClinicalSection label={tr('Advice')} icon={<Lightbulb className="h-3 w-3" />}>
               {rx.advice.map((a, i) => (
                 <ClinicalItem key={i}>{a}</ClinicalItem>
               ))}
@@ -136,7 +188,7 @@ export function RxPaper({
           )}
           {rx.operation && rx.operation.trim() && (
             <ClinicalSection
-              label="Operation plan"
+              label={tr('Operation plan')}
               icon={<Scissors className="h-3 w-3" />}
             >
               {rx.operation.split('\n').map((line, i) =>
@@ -161,7 +213,7 @@ export function RxPaper({
         <div>
           <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[1.4px] text-accent-ink mb-2">
             <Stethoscope className="h-3 w-3" />
-            Treatment
+            {tr('Treatment')}
           </div>
           <div
             className="font-serif italic font-semibold leading-none text-accent"
@@ -235,7 +287,7 @@ export function RxPaper({
           >
             <Calendar className="h-3 w-3" />
             <span>
-              <b className="font-semibold not-italic">Follow-up:</b>{' '}
+              <b className="font-semibold not-italic">{tr('Follow-up')}:</b>{' '}
               <span className="font-serif">
                 {rx.followUp || 'Not set'}
               </span>
@@ -246,7 +298,7 @@ export function RxPaper({
 
       {/* ─── Signature block ───────────────────────────────────── */}
       <div
-        className="mt-6 pt-4 border-t border-line flex items-end justify-between gap-6"
+        className="rx-keep-together mt-6 pt-4 border-t border-line flex items-end justify-between gap-6"
       >
         <div className="text-[11.5px] text-ink-3 leading-relaxed">
           {rx.notes && (
@@ -290,7 +342,9 @@ export function RxPaper({
           </div>
         </div>
       </div>
+
     </div>
+    </>
   );
 }
 

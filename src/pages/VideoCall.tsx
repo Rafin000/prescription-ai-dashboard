@@ -26,6 +26,7 @@ import { TalkToAIModal } from '../components/prescription/TalkToAIModal';
 import { RxLivePaper } from '../components/prescription/RxLivePaper';
 import { AddMedicineForm } from '../components/prescription/AddMedicineForm';
 import { RxPaper } from '../components/prescription/RxPaper';
+import { printRxScoped } from '../lib/printRx';
 import {
   EndSessionModal,
   type EndSessionAction,
@@ -353,7 +354,7 @@ export function VideoCall() {
 
     if (action === 'finalize' && print) {
       // Give the navigation a tick so the print dialog opens against the new page.
-      window.setTimeout(() => window.print(), 300);
+      window.setTimeout(() => printRxScoped(), 300);
     }
 
     if (action === 'finalize') {
@@ -976,7 +977,7 @@ export function VideoCall() {
             <Button variant="ghost" onClick={() => setPreviewOpen(false)}>
               Close
             </Button>
-            <Button variant="primary" leftIcon={<Printer />} onClick={() => window.print()}>
+            <Button variant="primary" leftIcon={<Printer />} onClick={() => printRxScoped()}>
               Print
             </Button>
           </>

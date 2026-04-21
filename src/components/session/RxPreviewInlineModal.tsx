@@ -1,7 +1,9 @@
+import { useRef } from 'react';
 import { Printer } from 'lucide-react';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { RxPaper } from '../prescription/RxPaper';
+import { printRxScoped } from '../../lib/printRx';
 import type { Doctor, Patient } from '../../types';
 import type { RxLiveDraft } from '../prescription/RxLivePaper';
 
@@ -27,6 +29,7 @@ export function RxPreviewInlineModal({
   draft,
   previewId,
 }: Props) {
+  const rxRef = useRef<HTMLDivElement | null>(null);
   return (
     <Modal
       open={open}
@@ -39,13 +42,17 @@ export function RxPreviewInlineModal({
           <Button variant="ghost" onClick={onClose}>
             Close
           </Button>
-          <Button variant="primary" leftIcon={<Printer />} onClick={() => window.print()}>
+          <Button
+            variant="primary"
+            leftIcon={<Printer />}
+            onClick={() => printRxScoped(rxRef.current)}
+          >
             Print now
           </Button>
         </>
       }
     >
-      <div className="-mx-2 overflow-x-auto">
+      <div ref={rxRef} className="-mx-2 overflow-x-auto">
         <RxPaper
           doctor={doctor}
           patient={patient}

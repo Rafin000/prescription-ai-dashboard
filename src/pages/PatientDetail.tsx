@@ -1,5 +1,5 @@
 import { Link, useParams } from 'react-router-dom';
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import {
   Activity,
   CalendarCheck,
@@ -7,6 +7,7 @@ import {
   CircleCheck,
   Download,
   Eye,
+  Filter,
   Mail,
   MapPin,
   Pencil,
@@ -16,6 +17,7 @@ import {
   Stethoscope,
   Upload,
   Video,
+  X,
 } from 'lucide-react';
 import { Badge } from '../components/ui/Badge';
 import { Avatar } from '../components/ui/Avatar';
@@ -41,6 +43,7 @@ import {
 } from '../queries/hooks';
 import { cn } from '../lib/cn';
 import { fmtDate, fmtTime } from '../lib/format';
+import { printRxScoped } from '../lib/printRx';
 import type { LabTest, Prescription, Visit } from '../types';
 import { parseISO } from 'date-fns';
 
@@ -55,6 +58,11 @@ export function PatientDetail() {
   const [startOpen, setStartOpen] = useState(false);
   const [previewLab, setPreviewLab] = useState<LabTest | null>(null);
   const [editOpen, setEditOpen] = useState(false);
+  const [visitFilter, setVisitFilter] = useState<{
+    type: 'all' | 'consultation' | 'follow-up' | 'tele';
+    rx: 'all' | 'final' | 'draft' | 'none';
+  }>({ type: 'all', rx: 'all' });
+  const [filterOpen, setFilterOpen] = useState(false);
 
   const { data: patient, isLoading } = usePatient(id);
   const { data: doctor } = useCurrentDoctor();
@@ -71,6 +79,19 @@ export function PatientDetail() {
   const pendingTests = useMemo(
     () => labs.filter((l) => l.status !== 'completed'),
     [labs]
+  );
+
+  const filteredVisits = useMemo(
+    () =>
+      visits.filter((v) => {
+        if (visitFilter.type !== 'all' && v.type !== visitFilter.type) return false;
+        if (visitFilter.rx !== 'all') {
+          const rxStatus = v.rxStatus ?? (v.prescriptionId ? 'final' : 'none');
+          if (rxStatus !== visitFilter.rx) return false;
+        }
+        return true;
+      }),
+    [visits, visitFilter],
   );
 
   if (isLoading || !patient) {
@@ -268,30 +289,106 @@ export function PatientDetail() {
 
           {/* Visit history */}
           <div className="bg-surface border border-line rounded-xl shadow-sm overflow-hidden">
-            <div className="flex items-center justify-between px-5 py-3.5 border-b border-line">
-              <div className="flex items-center gap-2">
+            <div className="flex items-center justify-between px-5 py-3.5 border-b border-line relative">
+              <div className="flex items-center gap-2 flex-wrap">
                 <div className="inline-flex items-center gap-1.5 text-[10.5px] font-bold uppercase tracking-[1.4px] text-accent-ink">
                   <Stethoscope className="h-3.5 w-3.5" />
                   Visit history
                 </div>
-                <span className="text-[11.5px] text-ink-3">· 5 shown of {visits.length}</span>
+                <span className="text-[11.5px] text-ink-3">
+                  · {filteredVisits.length} shown of {visits.length}
+                </span>
+                {(visitFilter.type !== 'all' || visitFilter.rx !== 'all') && (
+                  <button
+                    type="button"
+                    onClick={() => setVisitFilter({ type: 'all', rx: 'all' })}
+                    className="inline-flex items-center gap-1 text-[10.5px] font-semibold uppercase tracking-[1.2px] bg-accent-softer text-accent-ink border border-accent/30 rounded-full px-2 py-[2px] hover:bg-accent-soft"
+                  >
+                    <X className="h-3 w-3" />
+                    Clear filter
+                  </button>
+                )}
               </div>
-              <Button variant="ghost" size="sm" rightIcon={<ChevronRight />}>
-                Filter
-              </Button>
+              <div className="relative">
+                <Button
+                  variant={visitFilter.type !== 'all' || visitFilter.rx !== 'all' ? 'secondary' : 'ghost'}
+                  size="sm"
+                  leftIcon={<Filter />}
+                  onClick={() => setFilterOpen((v) => !v)}
+                >
+                  Filter
+                </Button>
+                {filterOpen && (
+                  <div className="absolute right-0 top-[calc(100%+6px)] z-20 w-[240px] rounded-lg border border-line bg-surface shadow-lg p-3 text-[12.5px]">
+                    <div className="text-[10px] font-bold uppercase tracking-[1.2px] text-ink-3 mb-1.5">
+                      Visit type
+                    </div>
+                    <div className="flex flex-col gap-0.5 mb-3">
+                      {(['all', 'consultation', 'follow-up', 'tele'] as const).map((k) => (
+                        <button
+                          key={k}
+                          type="button"
+                          onClick={() => setVisitFilter((f) => ({ ...f, type: k }))}
+                          className={cn(
+                            'text-left px-2 py-1 rounded-sm capitalize',
+                            visitFilter.type === k
+                              ? 'bg-accent-softer text-accent-ink font-semibold'
+                              : 'hover:bg-bg-muted text-ink-2',
+                          )}
+                        >
+                          {k === 'tele' ? 'Video call' : k}
+                        </button>
+                      ))}
+                    </div>
+                    <div className="text-[10px] font-bold uppercase tracking-[1.2px] text-ink-3 mb-1.5">
+                      Prescription
+                    </div>
+                    <div className="flex flex-col gap-0.5">
+                      {(['all', 'final', 'draft', 'none'] as const).map((k) => (
+                        <button
+                          key={k}
+                          type="button"
+                          onClick={() => setVisitFilter((f) => ({ ...f, rx: k }))}
+                          className={cn(
+                            'text-left px-2 py-1 rounded-sm capitalize',
+                            visitFilter.rx === k
+                              ? 'bg-accent-softer text-accent-ink font-semibold'
+                              : 'hover:bg-bg-muted text-ink-2',
+                          )}
+                        >
+                          {k === 'final' ? 'Finalised Rx' : k === 'draft' ? 'Draft Rx' : k === 'none' ? 'No Rx' : 'All'}
+                        </button>
+                      ))}
+                    </div>
+                    <div className="mt-3 pt-2 border-t border-line flex items-center justify-end">
+                      <button
+                        type="button"
+                        onClick={() => setFilterOpen(false)}
+                        className="text-[11.5px] text-ink-3 hover:text-ink"
+                      >
+                        Close
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
             <div>
-              {visits.length === 0 ? (
+              {filteredVisits.length === 0 ? (
                 <div className="p-5">
                   <Empty
                     icon={<Stethoscope />}
-                    title="No visits yet"
-                    description="Start a consult to capture this patient's first visit."
+                    title={visits.length === 0 ? 'No visits yet' : 'No visits match'}
+                    description={
+                      visits.length === 0
+                        ? "Start a consult to capture this patient's first visit."
+                        : 'Clear the filter to see the full history.'
+                    }
                   />
                 </div>
               ) : (
                 <ol className="relative">
-                  {visits.map((v, idx) => {
+                  {filteredVisits.map((v, idx) => {
                     const rx = rxList.find((r) => r.id === v.prescriptionId);
                     const isToday = v.date.startsWith('2026-04-18');
                     return (
@@ -557,22 +654,7 @@ function VisitTimelineItem({
             variant="pill"
           />
 
-          {tab === 'rx' && (
-            <div className="mt-4 -mx-2 overflow-x-auto">
-              {rx && doctor && patient ? (
-                <RxPaper
-                  doctor={doctor}
-                  patient={patient}
-                  chamberId={doctor.chambers[0].id}
-                  rx={rx}
-                />
-              ) : (
-                <div className="text-[12.5px] text-ink-3 italic px-2 py-6">
-                  This visit doesn't have a finalised prescription on file.
-                </div>
-              )}
-            </div>
-          )}
+          {tab === 'rx' && <VisitRxTab rx={rx} doctor={doctor} patient={patient} />}
 
           {tab === 'labs' && (
             <VisitLabsTab
@@ -833,6 +915,50 @@ function labsForVisit(
   if (byDay.length) return byDay;
   if (!testNames.length) return [];
   return all.filter((l) => testNames.some((t) => sameTest(l.name, t)));
+}
+
+/** Wraps the RxPaper for a visit timeline entry with a scoped Print
+ *  button. The ref points at the container so the helper tags this
+ *  sheet (and only this sheet) before invoking the browser print dialog. */
+function VisitRxTab({
+  rx,
+  doctor,
+  patient,
+}: {
+  rx: Prescription | undefined;
+  doctor: ReturnType<typeof useCurrentDoctor>['data'];
+  patient: ReturnType<typeof usePatient>['data'];
+}) {
+  const rxRef = useRef<HTMLDivElement | null>(null);
+  if (!rx || !doctor || !patient) {
+    return (
+      <div className="mt-4 text-[12.5px] text-ink-3 italic px-2 py-6">
+        This visit doesn't have a finalised prescription on file.
+      </div>
+    );
+  }
+  return (
+    <div className="mt-4">
+      <div className="mb-3 flex items-center justify-end">
+        <Button
+          variant="secondary"
+          size="sm"
+          leftIcon={<Printer />}
+          onClick={() => printRxScoped(rxRef.current)}
+        >
+          Print
+        </Button>
+      </div>
+      <div ref={rxRef} className="-mx-2 overflow-x-auto">
+        <RxPaper
+          doctor={doctor}
+          patient={patient}
+          chamberId={doctor.chambers[0].id}
+          rx={rx}
+        />
+      </div>
+    </div>
+  );
 }
 
 function VisitLabsTab({

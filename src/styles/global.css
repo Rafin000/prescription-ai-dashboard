@@ -14,6 +14,38 @@
     font-size: 14px;
     line-height: 1.5;
   }
+
+  /* ─── Dark mode ────────────────────────────────────────────────
+   * Toggled by `<html class="dark">` from SettingsRunner. Kept narrow:
+   * inverts the canvas + text + line + surface tokens. Component-level
+   * tints (accent-soft, danger-soft, etc.) stay vibrant so the UI
+   * still reads as a clinical product, not flat dark grey. */
+  html.dark {
+    color-scheme: dark;
+  }
+  html.dark body,
+  html.dark #root {
+    background: #0B1816;
+    color: #E6F0EE;
+  }
+  html.dark .bg-bg          { background-color: #0B1816 !important; }
+  html.dark .bg-bg-muted    { background-color: #0F211E !important; }
+  html.dark .bg-surface,
+  html.dark .bg-surface-muted { background-color: #14302C !important; }
+  html.dark .text-ink       { color: #E6F0EE !important; }
+  html.dark .text-ink-2     { color: #B7CFCB !important; }
+  html.dark .text-ink-3     { color: #7E9994 !important; }
+  html.dark .text-ink-4     { color: #557671 !important; }
+  html.dark .border-line,
+  html.dark .border-line-strong,
+  html.dark .divide-line > * + * { border-color: #1F4540 !important; }
+
+  /* Density: applied via SettingsRunner setting html.dataset.density */
+  html[data-density='compact'] {
+    font-size: 13px;
+  }
+  html[data-density='compact'] .pai-card,
+  html[data-density='compact'] .p-5 { padding: 0.875rem !important; }
   :focus-visible {
     outline: 2px solid theme('colors.accent.DEFAULT');
     outline-offset: 2px;
@@ -55,22 +87,78 @@
 }
 
 @media print {
-  @page {
-    size: A4 portrait;
-    margin: 10mm;
-  }
-  html,
-  body {
+  /* Page size follows the Rx paper's data-paper-size attribute when set
+     (RxPaper writes A4 or A5 onto the root sheet element). */
+  @page { margin: 10mm; }
+
+  html, body {
     background: white !important;
+    color: black !important;
   }
-  .pai-no-print {
-    display: none !important;
+
+  /* `printRxScoped` tags every sibling on the path from <body> to the
+     print target with `rx-print-hidden`. Killing them with
+     `display: none` strips their layout space too, so the printed page
+     starts at the Rx paper — no huge blank margin, no phantom pages
+     from the rest of the dashboard. */
+  .rx-print-hidden { display: none !important; }
+
+  /* Every ancestor on the path to the print target gets `rx-print-chain`.
+     Strip the dashboard's layout on them so the Rx paper can expand to
+     the full page width instead of being squeezed into the narrow
+     content column it happened to live in on the page. */
+  .rx-print-chain {
+    display: block !important;
+    width: 100% !important;
+    max-width: none !important;
+    min-width: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: none !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    overflow: visible !important;
+    position: static !important;
+    transform: none !important;
+    gap: 0 !important;
+    column-gap: 0 !important;
+    row-gap: 0 !important;
+    grid-template-columns: none !important;
+    grid-template-rows: none !important;
+    flex: none !important;
   }
-  /* Let the Rx paper use the full printable area regardless of the on-screen
-     container width. */
+
+  /* Let the Rx paper flow naturally in the printable area so long
+     prescriptions (many medicines, long advice) can break across
+     multiple pages. Normal flow is key here — `position: absolute`
+     would clip everything beyond the first page. */
+  .rx-print-root[data-rx-print-target="true"] {
+    margin: 0 !important;
+    width: 100% !important;
+    min-height: 0 !important;
+    box-shadow: none !important;
+    border: none !important;
+    border-radius: 0 !important;
+    page-break-inside: auto;
+    break-inside: auto;
+  }
+
+  /* Keep meaningful sections intact — a prescription item shouldn't
+     split across pages, and neither should the signature/tear-off. */
+  .rx-print-root[data-rx-print-target="true"] ol > li,
+  .rx-print-root[data-rx-print-target="true"] .rx-keep-together {
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+
+  /* Legacy helpers — keep working for any component using them. */
+  .pai-no-print { display: none !important; }
   .pai-rx-sheet {
     width: 100% !important;
     box-shadow: none !important;
     border: none !important;
   }
 }
+
+@media print and (max-width: 160mm) {}
+@page :first { margin: 10mm; }

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState, type ChangeEvent } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Camera,
@@ -21,7 +21,12 @@ import { ChamberEditorModal } from '../components/doctor/ChamberEditorModal';
 import { useCurrentDoctor } from '../queries/hooks';
 import { useAuthStore } from '../stores/authStore';
 import { chambersService, type ChamberInput } from '../services/chambersService';
+import { doctorService } from '../services/doctorService';
+import { resolveAsset } from '../config/env';
 import type { Chamber, Doctor } from '../types';
+
+const AVATAR_ACCEPT = 'image/png,image/jpeg,image/webp';
+const AVATAR_MAX_BYTES = 2_000_000;
 
 export function DoctorProfile() {
   const { data: doctor } = useCurrentDoctor();
@@ -31,12 +36,43 @@ export function DoctorProfile() {
   const [editProfileOpen, setEditProfileOpen] = useState(false);
   const [chamberOpen, setChamberOpen] = useState(false);
   const [chamberEditing, setChamberEditing] = useState<Chamber | null>(null);
+  const [avatarError, setAvatarError] = useState<string | null>(null);
+  const [avatarBust, setAvatarBust] = useState(() => Date.now());
+  const avatarInputRef = useRef<HTMLInputElement | null>(null);
 
   const invalidate = () =>
     qc.invalidateQueries({
       predicate: (q) =>
         Array.isArray(q.queryKey) && q.queryKey[0] === 'current-doctor',
     });
+
+  const uploadAvatar = useMutation({
+    mutationFn: (file: File) => doctorService.uploadAvatar(file),
+    onSuccess: async () => {
+      const next = await doctorService.getCurrent();
+      setUser(next);
+      setAvatarBust(Date.now());
+      invalidate();
+    },
+    onError: (e: { message?: string }) =>
+      setAvatarError(e?.message ?? 'Upload failed. Please try again.'),
+  });
+
+  const onAvatarChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    setAvatarError(null);
+    if (!AVATAR_ACCEPT.split(',').includes(file.type)) {
+      setAvatarError('Please choose a PNG, JPG, or WEBP image.');
+      return;
+    }
+    if (file.size > AVATAR_MAX_BYTES) {
+      setAvatarError('Photo must be under 2 MB.');
+      return;
+    }
+    uploadAvatar.mutate(file);
+  };
 
   const createChamber = useMutation({
     mutationFn: (body: ChamberInput) => chambersService.create(body),
@@ -104,17 +140,38 @@ export function DoctorProfile() {
         <Card>
           <div className="p-6 flex flex-col items-center text-center">
             <div className="relative">
-              <Avatar name={doctor.name} size="xl" ring />
+              <Avatar
+                name={doctor.name}
+                size="xl"
+                ring
+                src={resolveAsset(
+                  doctor.avatarUrl
+                    ? `${doctor.avatarUrl}?v=${avatarBust}`
+                    : undefined,
+                )}
+              />
               <button
                 type="button"
-                className="absolute -bottom-1 -right-1 h-8 w-8 rounded-full bg-accent text-white grid place-items-center shadow-sm"
+                className="absolute -bottom-1 -right-1 h-8 w-8 rounded-full bg-accent text-white grid place-items-center shadow-sm hover:bg-accent/90 disabled:opacity-60"
                 aria-label="Change photo"
-                title="Photo upload coming soon"
-                disabled
+                onClick={() => avatarInputRef.current?.click()}
+                disabled={uploadAvatar.isPending}
               >
                 <Camera className="h-4 w-4" />
               </button>
+              <input
+                ref={avatarInputRef}
+                type="file"
+                accept={AVATAR_ACCEPT}
+                className="hidden"
+                onChange={onAvatarChange}
+              />
             </div>
+            {avatarError && (
+              <div className="mt-2 rounded-md bg-danger-soft border border-danger/30 text-danger text-[11.5px] px-2.5 py-1.5">
+                {avatarError}
+              </div>
+            )}
             <div className="font-serif text-[22px] font-semibold text-ink mt-4">
               {doctor.name}
             </div>

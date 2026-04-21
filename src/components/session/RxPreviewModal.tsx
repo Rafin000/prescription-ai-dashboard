@@ -1,9 +1,11 @@
+import { useRef } from 'react';
 import { Printer } from 'lucide-react';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { Badge } from '../ui/Badge';
 import { useCurrentDoctor, usePatient, usePrescription } from '../../queries/hooks';
 import { RxPaper } from '../prescription/RxPaper';
+import { printRxScoped } from '../../lib/printRx';
 
 interface Props {
   open: boolean;
@@ -17,6 +19,7 @@ export function RxPreviewModal({ open, prescriptionId, patientId, onClose }: Pro
   const { data: doctor } = useCurrentDoctor();
   const { data: patient } = usePatient(patientId);
   const { data: rx, isLoading } = usePrescription(prescriptionId ?? undefined);
+  const rxRef = useRef<HTMLDivElement | null>(null);
 
   return (
     <Modal
@@ -36,7 +39,7 @@ export function RxPreviewModal({ open, prescriptionId, patientId, onClose }: Pro
             variant="primary"
             leftIcon={<Printer />}
             disabled={!rx}
-            onClick={() => window.print()}
+            onClick={() => printRxScoped(rxRef.current)}
           >
             Print
           </Button>
@@ -67,7 +70,7 @@ export function RxPreviewModal({ open, prescriptionId, patientId, onClose }: Pro
       )}
 
       {!isLoading && rx && doctor && patient && (
-        <div className="-mx-2 overflow-x-auto">
+        <div ref={rxRef} className="-mx-2 overflow-x-auto">
           <RxPaper
             doctor={doctor}
             patient={patient}

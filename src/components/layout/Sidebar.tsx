@@ -26,6 +26,7 @@ import { useUIStore } from '../../stores/uiStore';
 import { useLabIntake } from '../../queries/hooks';
 import { SYSTEM_ROLE_LABELS, isSystemRole, type Permission } from '../../lib/permissions';
 import { useRolePolicyStore } from '../../stores/rolePolicyStore';
+import { useT } from '../../lib/i18n';
 
 interface NavItem {
   to: string;
@@ -64,6 +65,7 @@ export function Sidebar() {
     (r) => r.status === 'needs_review' || r.status === 'unidentified'
   ).length;
 
+  const tr = useT();
   const role = user?.role;
   const has = useRolePolicyStore((s) => s.has);
   const rolesFromStore = useRolePolicyStore((s) => s.roles);
@@ -100,13 +102,13 @@ export function Sidebar() {
       <nav className="flex-1 overflow-y-auto py-4 px-3 flex flex-col gap-5">
         <NavGroup label="Workspace" collapsed={collapsed}>
           {primaryWithBadges.map((it) => (
-            <NavRow key={it.to} item={it} collapsed={collapsed} />
+            <NavRow key={it.to} item={{ ...it, label: tr(it.label) }} collapsed={collapsed} />
           ))}
         </NavGroup>
         {secondaryVisible.length > 0 && (
           <NavGroup label="Account" collapsed={collapsed}>
             {secondaryVisible.map((it) => (
-              <NavRow key={it.to} item={it} collapsed={collapsed} />
+              <NavRow key={it.to} item={{ ...it, label: tr(it.label) }} collapsed={collapsed} />
             ))}
           </NavGroup>
         )}

@@ -10,6 +10,7 @@ import {
   useUpdateVisitDraft,
 } from '../../queries/hooks';
 import { RxLivePaper, type RxLiveDraft } from '../prescription/RxLivePaper';
+import { printRxScoped } from '../../lib/printRx';
 import { AddMedicineForm } from '../prescription/AddMedicineForm';
 import type { Patient, Prescription, RxMedicine, Visit } from '../../types';
 
@@ -76,7 +77,7 @@ export function FinalizeDraftModal({ open, visit, patient, onClose }: Props) {
             : `Finalised for ${patient.name}.`
         );
         if (kind === 'finalize-print') {
-          window.setTimeout(() => window.print(), 250);
+          window.setTimeout(() => printRxScoped(), 250);
         }
         window.setTimeout(() => {
           setToast(null);

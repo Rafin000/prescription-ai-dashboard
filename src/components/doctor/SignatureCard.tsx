@@ -1,20 +1,49 @@
 import { useRef, useState, type ChangeEvent } from 'react';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { PenLine, Trash2, Upload } from 'lucide-react';
 import { Button } from '../ui/Button';
-import { useUpdateDoctor } from '../../queries/hooks';
+import { doctorService } from '../../services/doctorService';
+import { useAuthStore } from '../../stores/authStore';
+import { resolveAsset } from '../../config/env';
 import type { Doctor } from '../../types';
 
 interface SignatureCardProps {
   doctor: Doctor;
 }
 
-const MAX_BYTES = 1_000_000; // 1 MB
+const MAX_BYTES = 2_000_000; // 2 MB — matches backend cap
 const ACCEPT = 'image/png,image/jpeg,image/webp,image/svg+xml';
 
 export function SignatureCard({ doctor }: SignatureCardProps) {
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const { mutate: updateDoctor, isPending } = useUpdateDoctor();
+  const [bust, setBust] = useState(() => Date.now());
+  const qc = useQueryClient();
+  const setUser = useAuthStore((s) => s.setUser);
+
+  const invalidateProfile = async () => {
+    await qc.invalidateQueries({
+      predicate: (q) =>
+        Array.isArray(q.queryKey) && q.queryKey[0] === 'current-doctor',
+    });
+    const next = await doctorService.getCurrent();
+    setUser(next);
+    setBust(Date.now());
+  };
+
+  const upload = useMutation({
+    mutationFn: (file: File) => doctorService.uploadSignature(file),
+    onSuccess: invalidateProfile,
+    onError: (e: { message?: string }) =>
+      setError(e?.message ?? 'Upload failed. Please try again.'),
+  });
+
+  const clear = useMutation({
+    mutationFn: () => doctorService.update({ signatureUrl: '' }),
+    onSuccess: invalidateProfile,
+  });
+
+  const isPending = upload.isPending || clear.isPending;
 
   const handleFile = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -22,30 +51,25 @@ export function SignatureCard({ doctor }: SignatureCardProps) {
     if (!file) return;
     setError(null);
 
-    if (!ACCEPT.includes(file.type)) {
+    if (!ACCEPT.split(',').includes(file.type)) {
       setError('Please choose a PNG, JPG, WEBP, or SVG file.');
       return;
     }
     if (file.size > MAX_BYTES) {
-      setError('Signature must be under 1 MB.');
+      setError('Signature must be under 2 MB.');
       return;
     }
-
-    const reader = new FileReader();
-    reader.onerror = () => setError('Could not read that file. Please try another.');
-    reader.onload = () => {
-      const dataUrl = reader.result;
-      if (typeof dataUrl === 'string') {
-        updateDoctor({ signatureUrl: dataUrl });
-      }
-    };
-    reader.readAsDataURL(file);
+    upload.mutate(file);
   };
 
   const remove = () => {
     setError(null);
-    updateDoctor({ signatureUrl: '' });
+    clear.mutate();
   };
+
+  const sigSrc = resolveAsset(
+    doctor.signatureUrl ? `${doctor.signatureUrl}?v=${bust}` : undefined,
+  );
 
   return (
     <div className="bg-surface border border-line rounded-xl shadow-sm overflow-hidden">
@@ -67,9 +91,9 @@ export function SignatureCard({ doctor }: SignatureCardProps) {
               'repeating-linear-gradient(-45deg, #FAFDFB, #FAFDFB 8px, #F3F7F5 8px, #F3F7F5 16px)',
           }}
         >
-          {doctor.signatureUrl ? (
+          {sigSrc ? (
             <img
-              src={doctor.signatureUrl}
+              src={sigSrc}
               alt={`${doctor.name} signature`}
               className="max-h-full max-w-full object-contain"
             />
@@ -93,7 +117,7 @@ export function SignatureCard({ doctor }: SignatureCardProps) {
             <p className="text-[12.5px] text-ink-2 leading-relaxed">
               Ideally a transparent PNG of your handwritten signature. Keep it around
               600×200px — the Rx pad renders it at 200px wide. PNG, JPG, WEBP, or SVG up
-              to 1 MB.
+              to 2 MB.
             </p>
           </div>
 
