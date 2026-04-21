@@ -1,17 +1,88 @@
-import { Camera, CheckCircle2, Edit3, Mail, MapPin, Phone } from 'lucide-react';
+import { useState } from 'react';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import {
+  Camera,
+  CheckCircle2,
+  Edit3,
+  Mail,
+  MapPin,
+  Phone,
+  Plus,
+  Trash2,
+} from 'lucide-react';
 import { PageHeader } from '../components/layout/PageHeader';
 import { Card, CardHeader } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
-import { Input } from '../components/ui/Input';
 import { Badge } from '../components/ui/Badge';
 import { Avatar } from '../components/ui/Avatar';
 import { SignatureCard } from '../components/doctor/SignatureCard';
+import { EditProfileModal } from '../components/doctor/EditProfileModal';
+import { ChamberEditorModal } from '../components/doctor/ChamberEditorModal';
 import { useCurrentDoctor } from '../queries/hooks';
+import { useAuthStore } from '../stores/authStore';
+import { chambersService, type ChamberInput } from '../services/chambersService';
+import type { Chamber, Doctor } from '../types';
 
 export function DoctorProfile() {
   const { data: doctor } = useCurrentDoctor();
+  const setUser = useAuthStore((s) => s.setUser);
+  const qc = useQueryClient();
+
+  const [editProfileOpen, setEditProfileOpen] = useState(false);
+  const [chamberOpen, setChamberOpen] = useState(false);
+  const [chamberEditing, setChamberEditing] = useState<Chamber | null>(null);
+
+  const invalidate = () =>
+    qc.invalidateQueries({
+      predicate: (q) =>
+        Array.isArray(q.queryKey) && q.queryKey[0] === 'current-doctor',
+    });
+
+  const createChamber = useMutation({
+    mutationFn: (body: ChamberInput) => chambersService.create(body),
+    onSuccess: invalidate,
+  });
+  const updateChamber = useMutation({
+    mutationFn: ({ id, body }: { id: string; body: ChamberInput }) =>
+      chambersService.update(id, body),
+    onSuccess: invalidate,
+  });
+  const deleteChamber = useMutation({
+    mutationFn: (id: string) => chambersService.remove(id),
+    onSuccess: invalidate,
+  });
 
   if (!doctor) return <div className="text-[13px] text-ink-3">Loading profile…</div>;
+
+  const openAdd = () => {
+    setChamberEditing(null);
+    setChamberOpen(true);
+  };
+  const openEdit = (c: Chamber) => {
+    setChamberEditing(c);
+    setChamberOpen(true);
+  };
+  const handleChamberSave = async (body: ChamberInput) => {
+    if (chamberEditing) {
+      await updateChamber.mutateAsync({ id: chamberEditing.id, body });
+    } else {
+      await createChamber.mutateAsync(body);
+    }
+  };
+  const handleChamberDelete = (c: Chamber) => {
+    if (
+      window.confirm(
+        `Remove "${c.name}"? Patients won't see it on your public card.`,
+      )
+    ) {
+      deleteChamber.mutate(c.id);
+    }
+  };
+
+  const onProfileSaved = (next: Doctor) => {
+    setUser(next);
+    invalidate();
+  };
 
   return (
     <div className="flex flex-col gap-6">
@@ -19,7 +90,11 @@ export function DoctorProfile() {
         title="Doctor profile"
         description="This information appears on your prescription letterhead and your patient-facing booking page."
         actions={
-          <Button variant="primary" leftIcon={<Edit3 />}>
+          <Button
+            variant="primary"
+            leftIcon={<Edit3 />}
+            onClick={() => setEditProfileOpen(true)}
+          >
             Edit profile
           </Button>
         }
@@ -34,6 +109,8 @@ export function DoctorProfile() {
                 type="button"
                 className="absolute -bottom-1 -right-1 h-8 w-8 rounded-full bg-accent text-white grid place-items-center shadow-sm"
                 aria-label="Change photo"
+                title="Photo upload coming soon"
+                disabled
               >
                 <Camera className="h-4 w-4" />
               </button>
@@ -68,17 +145,17 @@ export function DoctorProfile() {
 
         <Card>
           <CardHeader title="Personal information" />
-          <div className="p-5 grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Input label="Full name" defaultValue={doctor.name} />
-            <Input label="Name (Bangla)" defaultValue={doctor.nameBn} />
-            <Input label="Specialty" defaultValue={doctor.specialty} />
-            <Input label="BMDC No." defaultValue={doctor.bmdcNo} />
-            <Input label="Phone" defaultValue={doctor.phone} leftIcon={<Phone />} />
-            <Input label="Email" defaultValue={doctor.email} leftIcon={<Mail />} />
-            <Input
+          <div className="p-5 grid grid-cols-1 md:grid-cols-2 gap-4 text-[13px]">
+            <Field label="Full name" value={doctor.name} />
+            <Field label="Name (Bangla)" value={doctor.nameBn ?? '—'} />
+            <Field label="Specialty" value={doctor.specialty} />
+            <Field label="BMDC No." value={doctor.bmdcNo} />
+            <Field label="Phone" value={doctor.phone} mono />
+            <Field label="Email" value={doctor.email} mono />
+            <Field
               label="Degrees"
-              defaultValue={doctor.degrees.join(', ')}
-              wrapperClassName="md:col-span-2"
+              value={doctor.degrees.join(', ')}
+              className="md:col-span-2"
             />
           </div>
         </Card>
@@ -91,40 +168,91 @@ export function DoctorProfile() {
           title="Chambers"
           icon={<MapPin />}
           actions={
-            <Button variant="secondary" size="sm">
+            <Button variant="secondary" size="sm" leftIcon={<Plus />} onClick={openAdd}>
               Add chamber
             </Button>
           }
         />
-        <div className="divide-y divide-line">
-          {doctor.chambers.map((c) => (
-            <div key={c.id} className="p-5 flex items-start gap-4">
-              <div className="h-10 w-10 rounded-md bg-accent-softer text-accent-ink grid place-items-center shrink-0">
-                <MapPin className="h-4 w-4" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="font-serif text-[15.5px] font-semibold text-ink">{c.name}</div>
-                <div className="text-[12.5px] text-ink-3 mt-0.5">{c.address}</div>
-                <div className="mt-2 flex flex-wrap gap-2 items-center text-[11.5px]">
-                  {c.days.map((d) => (
-                    <span
-                      key={d}
-                      className="font-bold uppercase tracking-wider bg-accent-softer text-accent-ink rounded-xs px-1.5 py-0.5 text-[10.5px]"
-                    >
-                      {d}
-                    </span>
-                  ))}
-                  <span className="text-ink-2 font-mono">{c.time}</span>
-                  {c.phone && <span className="text-ink-3 font-mono">· {c.phone}</span>}
+        {doctor.chambers.length === 0 ? (
+          <div className="p-8 text-center text-[13px] text-ink-3">
+            No chambers yet. Add one so patients can find you on the public directory.
+          </div>
+        ) : (
+          <div className="divide-y divide-line">
+            {doctor.chambers.map((c) => (
+              <div key={c.id} className="p-5 flex items-start gap-4">
+                <div className="h-10 w-10 rounded-md bg-accent-softer text-accent-ink grid place-items-center shrink-0">
+                  <MapPin className="h-4 w-4" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="font-serif text-[15.5px] font-semibold text-ink">
+                    {c.name}
+                  </div>
+                  <div className="text-[12.5px] text-ink-3 mt-0.5">{c.address}</div>
+                  <div className="mt-2 flex flex-wrap gap-2 items-center text-[11.5px]">
+                    {c.area && (
+                      <span className="font-bold uppercase tracking-wider bg-accent-softer text-accent-ink rounded-xs px-1.5 py-0.5 text-[10.5px]">
+                        {c.area}
+                      </span>
+                    )}
+                    {c.time && <span className="text-ink-2 font-mono">{c.time}</span>}
+                    {c.phone && <span className="text-ink-3 font-mono">· {c.phone}</span>}
+                  </div>
+                </div>
+                <div className="flex items-center gap-1">
+                  <Button variant="ghost" size="sm" onClick={() => openEdit(c)}>
+                    Edit
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    leftIcon={<Trash2 />}
+                    onClick={() => handleChamberDelete(c)}
+                    className="text-danger hover:bg-danger-soft"
+                  >
+                    Remove
+                  </Button>
                 </div>
               </div>
-              <Button variant="ghost" size="sm">
-                Edit
-              </Button>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </Card>
+
+      <EditProfileModal
+        open={editProfileOpen}
+        onClose={() => setEditProfileOpen(false)}
+        doctor={doctor}
+        onSaved={onProfileSaved}
+      />
+
+      <ChamberEditorModal
+        open={chamberOpen}
+        onClose={() => setChamberOpen(false)}
+        onSave={handleChamberSave}
+        initial={chamberEditing}
+      />
+    </div>
+  );
+}
+
+function Field({
+  label,
+  value,
+  mono,
+  className,
+}: {
+  label: string;
+  value: string;
+  mono?: boolean;
+  className?: string;
+}) {
+  return (
+    <div className={className}>
+      <div className="text-[10.5px] font-bold uppercase tracking-[1.2px] text-ink-3">
+        {label}
+      </div>
+      <div className={`mt-1 text-ink ${mono ? 'font-mono' : ''}`}>{value}</div>
     </div>
   );
 }
