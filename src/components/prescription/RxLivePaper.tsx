@@ -15,6 +15,8 @@ import {
 } from 'lucide-react';
 import { cn } from '../../lib/cn';
 import { fmtDate } from '../../lib/format';
+import { useResolvedSettings } from '../../stores/settingsStore';
+import { resolveAsset } from '../../config/env';
 import type { Doctor, Patient, RxMedicine } from '../../types';
 
 export interface RxLiveDraft {
@@ -62,8 +64,13 @@ export interface PatientStripOverrides {
 }
 
 /* ── Pagination tunables ─────────────────────────────────── */
-const MEDS_PAGE_1 = 6;
-const MEDS_CONT_PAGE = 14;
+/** Paper-aware pagination. Must mirror `RxPaper` so the live editor,
+ *  the preview modal and the printed output all paginate the same way.
+ *  A5 is half of A4, so the per-page cap halves. */
+const MEDS_PAGE_LIMITS: Record<'A4' | 'A5', { first: number; cont: number }> = {
+  A4: { first: 7, cont: 12 },
+  A5: { first: 3, cont: 6 },
+};
 const NOTES_BUDGET_PAGE_1 = 30; // rough "lines" — page 1 minus patient strip
 const NOTES_BUDGET_CONT = 40;
 const NOTES_HEADER_COST = 2;
@@ -181,12 +188,16 @@ function paginateNotes(draft: RxLiveDraft): NotesPageContent[] {
   return pages;
 }
 
-function paginateMeds(meds: RxMedicine[]): Array<{ meds: RxMedicine[]; startIdx: number }> {
+function paginateMeds(
+  meds: RxMedicine[],
+  paperSize: 'A4' | 'A5',
+): Array<{ meds: RxMedicine[]; startIdx: number }> {
+  const { first, cont } = MEDS_PAGE_LIMITS[paperSize];
   const pages: Array<{ meds: RxMedicine[]; startIdx: number }> = [
-    { meds: meds.slice(0, MEDS_PAGE_1), startIdx: 0 },
+    { meds: meds.slice(0, first), startIdx: 0 },
   ];
-  for (let i = MEDS_PAGE_1; i < meds.length; i += MEDS_CONT_PAGE) {
-    pages.push({ meds: meds.slice(i, i + MEDS_CONT_PAGE), startIdx: i });
+  for (let i = first; i < meds.length; i += cont) {
+    pages.push({ meds: meds.slice(i, i + cont), startIdx: i });
   }
   return pages;
 }
@@ -206,8 +217,11 @@ export function RxLivePaper({
   date,
   onPatientStripChange,
 }: RxLivePaperProps) {
+  const settings = useResolvedSettings();
+  const paperSize = settings.printing.paperSize;
   const notesPages = paginateNotes(draft);
-  const medPages = paginateMeds(draft.medicines);
+  const medPages = paginateMeds(draft.medicines, paperSize);
+  const { first: medsPage1Limit } = MEDS_PAGE_LIMITS[paperSize];
   const totalPages = Math.max(notesPages.length, medPages.length || 1);
   const dateStr = date ?? fmtDate(new Date().toISOString(), 'd MMM yyyy');
   const patientStrip = {
@@ -262,10 +276,11 @@ export function RxLivePaper({
           onRemoveNote={removeNote}
           onAddNote={addNote}
           overflowCount={
-            pg.isFirst && draft.medicines.length > MEDS_PAGE_1
-              ? draft.medicines.length - MEDS_PAGE_1
+            pg.isFirst && draft.medicines.length > medsPage1Limit
+              ? draft.medicines.length - medsPage1Limit
               : 0
           }
+          paperSize={paperSize}
         />
       ))}
     </div>
@@ -296,6 +311,7 @@ interface RxSheetProps {
   onRemoveNote: (key: NotesKey, idx: number) => void;
   onAddNote: (key: NotesKey, value: string) => void;
   overflowCount: number;
+  paperSize: 'A4' | 'A5';
 }
 
 function RxSheet({
@@ -314,14 +330,19 @@ function RxSheet({
   onRemoveNote,
   onAddNote,
   overflowCount,
+  paperSize,
 }: RxSheetProps) {
   return (
     <div
       className="bg-white rounded-lg border border-line shadow-md px-8 pt-7 pb-6 flex flex-col"
-      /* Locked to A4 aspect at 820px width (210 × 297 mm). The sheet keeps
-         its real dimensions even when there's nothing written yet, so the
-         preview always reads as a full prescription page. */
-      style={{ width: 820, minHeight: 1160 }}
+      /* Sheet size follows the configured paper:
+         A4 = 210 × 297 mm → 820 × 1160 px at 96dpi-ish preview scale
+         A5 = 148 × 210 mm → 580 × 820  px at the same scale. */
+      style={
+        paperSize === 'A5'
+          ? { width: 580, minHeight: 820 }
+          : { width: 820, minHeight: 1160 }
+      }
     >
       {pg.isFirst ? (
         <>
@@ -417,19 +438,9 @@ function RxSheet({
         />
       </div>
 
-      {/* Footer: signature on last page, continuation marker otherwise */}
-      {pg.isLast ? (
-        <Signature doctor={doctor} />
-      ) : (
-        <div className="mt-5 pt-3 border-t border-dashed border-line text-center text-[10.5px] text-ink-3 font-mono uppercase tracking-[1px]">
-          Page {pg.idx + 1} of {totalPages} · continued →
-        </div>
-      )}
-      {pg.isLast && totalPages > 1 && (
-        <div className="mt-3 pt-2 border-t border-dashed border-line text-center text-[10.5px] text-ink-3 font-mono uppercase tracking-[1px]">
-          Page {pg.idx + 1} of {totalPages} · end of prescription
-        </div>
-      )}
+      {/* Footer (pharmacist note + signature) on every sheet so each
+          printed page is self-contained. */}
+      <Signature doctor={doctor} />
     </div>
   );
 }
@@ -618,25 +629,17 @@ function MedsColumn({
         </div>
       ) : null}
 
-      {/* Add button + overflow chip — only on last page for the add, first page for the chip */}
-      {(isLast || (isFirst && overflowCount > 0)) && (
+      {/* Add button — only on the last sheet */}
+      {isLast && (
         <div className="mt-3 flex items-center gap-2 flex-wrap">
-          {isFirst && overflowCount > 0 && (
-            <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-warn bg-warn-soft border border-warn/30 rounded-full px-2.5 py-[3px]">
-              <ChevronRight className="h-3 w-3" />
-              {overflowCount} more on page 2
-            </span>
-          )}
-          {isLast && (
-            <button
-              type="button"
-              onClick={onAddMedicine}
-              className="inline-flex items-center gap-1 text-[11px] font-medium text-ink-3 px-2.5 py-1 rounded-full border border-dashed border-line hover:border-accent hover:text-accent-ink transition-colors"
-            >
-              <Plus className="h-3 w-3" />
-              Add medicine
-            </button>
-          )}
+          <button
+            type="button"
+            onClick={onAddMedicine}
+            className="inline-flex items-center gap-1 text-[11px] font-medium text-ink-3 px-2.5 py-1 rounded-full border border-dashed border-line hover:border-accent hover:text-accent-ink transition-colors"
+          >
+            <Plus className="h-3 w-3" />
+            Add medicine
+          </button>
         </div>
       )}
 
@@ -682,14 +685,6 @@ function ContHeader({
         </div>
         <div className="text-[10.5px] text-ink-3 mt-0.5 font-mono">
           Rx {patient.code} · {dateStr}
-        </div>
-      </div>
-      <div className="text-right">
-        <div className="inline-block text-[10.5px] font-bold font-mono text-accent-ink bg-accent-soft border border-accent/30 rounded-xs px-2 py-[3px]">
-          Page {pageNum} of {totalPages}
-        </div>
-        <div className="text-[10.5px] text-ink-3 mt-1">
-          continued from page {pageNum - 1}
         </div>
       </div>
     </div>
@@ -746,7 +741,7 @@ function MedList({
       {meds.map((m, i) => (
         <li
           key={m.id}
-          className="grid gap-2.5 py-2.5 items-start border-b border-dotted border-line last:border-b-0 group"
+          className="grid gap-2.5 py-1.5 items-start border-b border-dotted border-line last:border-b-0 group"
           style={{ gridTemplateColumns: '24px 1fr auto' }}
         >
           <span className="font-serif font-semibold text-[16px] text-accent leading-none pt-0.5">
@@ -868,41 +863,33 @@ function FollowUpField({
 function Signature({ doctor }: { doctor: Doctor }) {
   const hasImage = !!doctor.signatureUrl;
   return (
-    <div className="mt-6 pt-4 border-t border-line flex items-end justify-between gap-6">
-      <div className="text-[11.5px] text-ink-3 leading-relaxed">
+    <div className="mt-3 flex items-end justify-between gap-6">
+      <div className="text-[11px] text-ink-3 leading-snug">
         Pharmacist: please dispense as written · Keep this prescription safe
       </div>
-      <div className="text-right shrink-0">
-        {hasImage ? (
-          <div
-            className="flex items-end justify-end"
-            style={{
-              borderBottom: '1px solid #0B1F1C',
-              minWidth: 200,
-              padding: '2px 40px 2px 0',
-              minHeight: 44,
-            }}
-          >
+      <div className="shrink-0 inline-block">
+        <div
+          className="flex items-end justify-center"
+          style={{
+            borderBottom: '1px solid #0B1F1C',
+            minHeight: 44,
+            padding: '2px 0',
+          }}
+        >
+          {hasImage ? (
             <img
-              src={doctor.signatureUrl}
+              src={resolveAsset(doctor.signatureUrl)}
               alt={`${doctor.name} signature`}
-              className="max-h-[50px] max-w-[200px] object-contain mix-blend-multiply"
+              className="max-h-[42px] max-w-[180px] object-contain mix-blend-multiply"
             />
-          </div>
-        ) : (
-          <div
-            className="font-serif italic text-[18px] text-ink-2"
-            style={{
-              borderBottom: '1px solid #0B1F1C',
-              minWidth: 200,
-              padding: '2px 40px 2px 0',
-            }}
-          >
-            {doctor.name}
-          </div>
-        )}
-        <div className="text-[10px] text-ink-3 mt-1 tracking-[1px] uppercase">
-          {doctor.name} · Signature &amp; seal
+          ) : (
+            <div className="font-serif italic text-[15px] text-ink-2 pb-0.5 min-w-[160px]">
+              {doctor.name}
+            </div>
+          )}
+        </div>
+        <div className="text-[9.5px] text-ink-3 mt-0.5 tracking-[1px] uppercase text-center">
+          Signature
         </div>
       </div>
     </div>

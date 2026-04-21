@@ -38,7 +38,7 @@ export const DEFAULT_SETTINGS: Required<
     patientReschedules: true,
   },
   printing: {
-    paperSize: 'A5',
+    paperSize: 'A4',
     pharmacyTearOff: true,
     letterhead: 'Clinical & calm (default)',
   },

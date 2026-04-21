@@ -43,17 +43,32 @@ export function printRxScoped(el?: HTMLElement | null): void {
  *  display:none's it) and every ancestor is tagged `rx-print-chain` so
  *  CSS can reset the dashboard's flex/grid/padding constraints. Without
  *  the chain reset, the Rx renders at the page's narrow content-column
- *  width instead of the full A4/A5 page. */
+ *  width instead of the full A4/A5 page.
+ *
+ *  When an Rx paginates into multiple `.rx-print-root` sheets (a long
+ *  prescription breaking across pages), all of them are siblings under
+ *  the same wrapper — we tag every sibling sheet as a print target so
+ *  none of them get hidden as "off path". */
 function applyPrintIsolation(target: HTMLElement): void {
-  target.setAttribute('data-rx-print-target', 'true');
+  // Tag every sibling sheet in the same paginated group as a target so
+  // the CSS `display: none` pass below spares them.
+  const groupWrapper = target.parentElement;
+  const groupSheets = groupWrapper
+    ? [...groupWrapper.querySelectorAll<HTMLElement>(':scope > .rx-print-root')]
+    : [target];
+  for (const s of groupSheets) s.setAttribute('data-rx-print-target', 'true');
+
   let node: HTMLElement | null = target;
   while (node && node !== document.body) {
     const parent = node.parentElement;
     if (!parent) break;
     for (const sibling of Array.from(parent.children)) {
-      if (sibling !== node && sibling instanceof HTMLElement) {
-        sibling.classList.add('rx-print-hidden');
-      }
+      if (sibling === node) continue;
+      if (!(sibling instanceof HTMLElement)) continue;
+      // Don't hide our own paginated sibling sheets — they're part of
+      // the same Rx and must all print.
+      if (sibling.classList.contains('rx-print-root')) continue;
+      sibling.classList.add('rx-print-hidden');
     }
     parent.classList.add('rx-print-chain');
     node = parent;

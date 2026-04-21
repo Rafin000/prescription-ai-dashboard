@@ -87,9 +87,9 @@
 }
 
 @media print {
-  /* Page size follows the Rx paper's data-paper-size attribute when set
-     (RxPaper writes A4 or A5 onto the root sheet element). */
-  @page { margin: 10mm; }
+  /* `@page` is declared inline by <RxPaper> so the page size + margin
+     match the doctor's chosen paper (A4 / A5) with margin: 0 to strip
+     the browser's own header/footer. */
 
   html, body {
     background: white !important;
@@ -131,11 +131,21 @@
   /* Let the Rx paper flow naturally in the printable area so long
      prescriptions (many medicines, long advice) can break across
      multiple pages. Normal flow is key here — `position: absolute`
-     would clip everything beyond the first page. */
+     would clip everything beyond the first page. The padding here
+     replaces the `@page` margin we zeroed out (to hide browser
+     header/footer) so the content still has breathing room. */
   .rx-print-root[data-rx-print-target="true"] {
+    /* Each JS-rendered sheet is sized to fit one printed page, so we
+       can safely keep the flex-column layout at print time and let the
+       `.flex-1` spacer push the footer (signature + pharmacist line)
+       to the very bottom of the printed page. `break-after: page` (set
+       further down) ensures each sheet lands on its own page. */
+    display: flex !important;
+    flex-direction: column !important;
     margin: 0 !important;
     width: 100% !important;
-    min-height: 0 !important;
+    min-height: 100vh !important;
+    padding: 8mm 15mm !important;
     box-shadow: none !important;
     border: none !important;
     border-radius: 0 !important;
@@ -143,12 +153,33 @@
     break-inside: auto;
   }
 
-  /* Keep meaningful sections intact — a prescription item shouldn't
-     split across pages, and neither should the signature/tear-off. */
-  .rx-print-root[data-rx-print-target="true"] ol > li,
+  /* Keep the signature + follow-up block from being split across
+     pages. Don't apply break-inside:avoid to the medicines — JS
+     pagination already packs a valid per-page slice of items, and
+     letting the browser re-break inside a sheet fights the JS
+     layout and produces awkward half-empty pages. */
   .rx-print-root[data-rx-print-target="true"] .rx-keep-together {
     page-break-inside: avoid;
     break-inside: avoid;
+  }
+
+  /* Force one print page per JS-rendered sheet. Combined with an
+     aggressive JS pagination cap (see MEDS_PAGE_1 in RxPaper.tsx),
+     this makes every sheet fit on exactly one printed page and keeps
+     the doctor header + patient strip at the top of every page. */
+  .rx-print-root[data-rx-print-target="true"]:not(:last-of-type) {
+    break-after: page;
+    page-break-after: always;
+  }
+
+  /* The body grid carries a 420px min-height for on-screen layout so
+     the paper looks like a paper. In print that extra padding eats
+     into the page budget and can bump the signature footer onto
+     page 2. Clear it — the flex-column sheet already takes the full
+     page height via `min-height: 100vh`. */
+  .rx-print-root[data-rx-print-target="true"] [style*="min-height: 420px"],
+  .rx-print-root[data-rx-print-target="true"] [style*="min-height:420px"] {
+    min-height: 0 !important;
   }
 
   /* Legacy helpers — keep working for any component using them. */
@@ -160,5 +191,3 @@
   }
 }
 
-@media print and (max-width: 160mm) {}
-@page :first { margin: 10mm; }
